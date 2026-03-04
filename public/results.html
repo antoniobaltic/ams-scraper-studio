@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AMS Scraper – Ergebnisse</title>
+    <style>
+      :root {
+        --bg: #f3f5f7;
+        --card: #ffffff;
+        --line: #d6dce4;
+        --text: #0f1720;
+        --muted: #516071;
+        --accent: #2563eb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      /* ── Top bar ── */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+        padding: 10px 28px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .topbar h1 { margin: 0; font-size: 1.05rem; white-space: nowrap; }
+      .topbar .meta { font-size: .82rem; color: var(--muted); white-space: nowrap; }
+
+      .filter-input {
+        flex: 1;
+        min-width: 160px;
+        max-width: 340px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: .88rem;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .filter-input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        border-color: transparent;
+        background: #fff;
+      }
+      .filter-count { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+
+      /* streaming indicator */
+      .streaming-badge {
+        font-size: .78rem;
+        color: var(--accent);
+        white-space: nowrap;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      .streaming-badge[hidden] { display: none; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+      .btn {
+        border: 1px solid #1f58d3;
+        background: var(--accent);
+        color: #fff;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: .85rem;
+        white-space: nowrap;
+      }
+      .btn.ghost { border-color: #c9d2dd; background: #fff; color: var(--text); }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+      /* ── Content ── */
+      .content { max-width: 1540px; margin: 16px auto; padding: 0 28px 48px; }
+      pre {
+        white-space: pre-wrap;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: .78rem;
+        margin: 0 0 12px;
+        color: var(--muted);
+      }
+      #errors { color: #b91c1c; margin: 0 0 10px; font-size: .85rem; }
+
+      /* ── Table ── */
+      .tableWrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--card);
+      }
+      table {
+        border-collapse: collapse;
+        font-size: .8rem;
+        table-layout: fixed;
+        width: 100%;
+        min-width: 1700px;
+      }
+      thead tr { background: #f1f4f8; }
+      th {
+        border-bottom: 2px solid var(--line);
+        padding: 9px 10px;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: .75rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        cursor: pointer;
+        user-select: none;
+      }
+      th:hover { background: #e8edf4; color: var(--text); }
+      th.sorted { color: var(--accent); background: #eef2ff; }
+      .sort-icon { margin-left: 4px; opacity: .35; font-style: normal; font-size: .7rem; }
+      th.sorted .sort-icon { opacity: 1; }
+      td {
+        border-bottom: 1px solid #edf0f4;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      tbody tr:last-child td { border-bottom: none; }
+      tbody tr { cursor: pointer; }
+      tbody tr:hover { background: #f0f4ff; }
+      tbody tr.row-active { background: #e8eeff; }
+
+      /* Description cell */
+      td.col-desc {
+        white-space: normal;
+        overflow: visible;
+        vertical-align: top;
+        line-height: 1.5;
+        padding-top: 9px;
+        padding-bottom: 9px;
+      }
+      .desc-btn {
+        display: inline-block;
+        margin-top: 4px;
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-size: .75rem;
+        cursor: pointer;
+        padding: 0;
+        font-weight: 600;
+      }
+      .desc-btn:hover { text-decoration: underline; }
+      td a { color: var(--accent); text-decoration: none; font-weight: 500; }
+      td a:hover { text-decoration: underline; }
+
+      /* Empty / no-data */
+      .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+      .empty a { color: var(--accent); }
+
+      /* ── Drawer ── */
+      .drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,32,.35);
+        z-index: 200;
+        cursor: pointer;
+      }
+      .drawer-backdrop[hidden] { display: none; }
+
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 500px;
+        max-width: 92vw;
+        height: 100dvh;
+        background: var(--card);
+        box-shadow: -6px 0 32px rgba(0,0,0,.18);
+        z-index: 201;
+        display: flex;
+        flex-direction: column;
+      }
+      .drawer[hidden] { display: none; }
+
+      .drawer-header {
+        padding: 16px 20px 14px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .drawer-header h2 {
+        margin: 0;
+        font-size: 1rem;
+        flex: 1;
+        line-height: 1.45;
+      }
+      .drawer-close {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--muted);
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-top: -2px;
+      }
+      .drawer-close:hover { color: var(--text); background: var(--bg); }
+
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 18px 20px 0;
+      }
+      .drawer-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 20px;
+        margin-bottom: 18px;
+      }
+      .d-field label {
+        display: block;
+        font-size: .72rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 3px;
+      }
+      .d-field span { font-size: .88rem; }
+      .drawer-desc-heading {
+        font-size: .72rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin: 0 0 8px;
+      }
+      .drawer-desc {
+        font-size: .88rem;
+        line-height: 1.7;
+        color: var(--text);
+        white-space: pre-wrap;
+        padding-bottom: 20px;
+      }
+      .drawer-footer {
+        padding: 14px 20px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>AMS Ergebnisse</h1>
+      <input class="filter-input" id="filterInput"
+             type="search" placeholder="Filtern nach Titel, Unternehmen, Ort …" />
+      <span class="filter-count" id="filterCount"></span>
+      <span class="streaming-badge" id="streamingBadge" hidden>⟳ Lädt …</span>
+      <span class="meta" id="metaSummary"></span>
+      <button class="btn ghost" id="csvBtn" disabled>CSV</button>
+      <button class="btn ghost" id="xlsxBtn" disabled>Excel</button>
+      <button class="btn ghost" id="backBtn">← Tab schließen</button>
+    </header>
+
+    <div class="content">
+      <pre id="searchUrl" style="display:none"></pre>
+      <p id="errors"></p>
+      <div class="tableWrap">
+        <table id="resultsTable">
+          <tbody><tr><td class="empty">Lädt …</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Side drawer -->
+    <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+    <aside class="drawer" id="drawer" hidden aria-label="Stellendetails">
+      <div class="drawer-header">
+        <h2 id="dTitle"></h2>
+        <button class="drawer-close" id="drawerClose" title="Schließen">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-meta" id="dMeta"></div>
+        <p class="drawer-desc-heading">Beschreibung</p>
+        <div class="drawer-desc" id="dDesc"></div>
+      </div>
+      <div class="drawer-footer">
+        <a class="btn" id="dLink" href="#" target="_blank" rel="noopener noreferrer">Im AMS öffnen ↗</a>
+        <button class="btn ghost" id="drawerCloseBtn">Schließen</button>
+      </div>
+    </aside>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script>
+      // ─── Column config ──────────────────────────────────────────────────────
+      const COL_WIDTHS = {
+        id: 58, title: 230, company: 185, location: 95, state: 125,
+        zip: 58, posted_at: 92, working_time: 85, employment_type: 165,
+        job_offer_type: 105, education: 185, description: 320, url: 70,
+      };
+      const LABELS = {
+        id: 'ID', title: 'Titel', company: 'Unternehmen', location: 'Ort',
+        state: 'Bundesland', zip: 'PLZ', posted_at: 'Datum',
+        working_time: 'Arbeitszeit', employment_type: 'Dienstverhältnis',
+        job_offer_type: 'Quelle', education: 'Ausbildung',
+        description: 'Beschreibung', url: 'Link',
+      };
+      const DESC_LIMIT = 300;
+      // Columns excluded from sort (still sortable but less useful; keep all for simplicity)
+      const NO_SORT = new Set(['url']);
+
+      // ─── State ──────────────────────────────────────────────────────────────
+      let allRows = [];       // raw data from localStorage
+      let displayedRows = []; // after filter + sort (used for drawer lookup)
+      let sortCol = '';
+      let sortDir = 'asc';
+      let activeRowEl = null;
+
+      // ─── Helpers ────────────────────────────────────────────────────────────
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      // ─── Filter + Sort ──────────────────────────────────────────────────────
+      const FILTER_KEYS = ['title', 'company', 'location', 'state', 'employment_type', 'education', 'job_offer_type'];
+
+      function getFilteredRows() {
+        const q = document.getElementById('filterInput').value.trim().toLowerCase();
+        if (!q) return [...allRows];
+        return allRows.filter((r) =>
+          FILTER_KEYS.some((k) => String(r[k] ?? '').toLowerCase().includes(q))
+        );
+      }
+
+      function getSortedRows(rows) {
+        if (!sortCol) return rows;
+        return [...rows].sort((a, b) => {
+          const av = String(a[sortCol] ?? '');
+          const bv = String(b[sortCol] ?? '');
+          const cmp = av.localeCompare(bv, 'de', { numeric: true });
+          return sortDir === 'asc' ? cmp : -cmp;
+        });
+      }
+
+      function refresh() {
+        const filtered = getFilteredRows();
+        displayedRows = getSortedRows(filtered);
+
+        const total = allRows.length;
+        const shown = displayedRows.length;
+        document.getElementById('filterCount').textContent =
+          shown < total ? `${shown} von ${total} Jobs` : '';
+
+        renderTable(displayedRows);
+        updateSortHeaders();
+      }
+
+      // ─── Render ─────────────────────────────────────────────────────────────
+      function renderTable(rows) {
+        const table = document.getElementById('resultsTable');
+        table.innerHTML = '';
+
+        if (!rows.length) {
+          table.innerHTML = '<tbody><tr><td class="empty">Keine Treffer.</td></tr></tbody>';
+          return;
+        }
+
+        const columns = Object.keys(rows[0]);
+
+        // Colgroup
+        const cg = document.createElement('colgroup');
+        columns.forEach((c) => {
+          const col = document.createElement('col');
+          col.style.width = (COL_WIDTHS[c] ?? 110) + 'px';
+          cg.appendChild(col);
+        });
+        table.appendChild(cg);
+
+        // Header
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        columns.forEach((c) => {
+          const th = document.createElement('th');
+          th.dataset.col = c;
+          if (NO_SORT.has(c)) {
+            th.textContent = LABELS[c] ?? c;
+            th.style.cursor = 'default';
+          } else {
+            th.innerHTML =
+              `${escHtml(LABELS[c] ?? c)}<i class="sort-icon" aria-hidden="true">↕</i>`;
+          }
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        // Attach sort click to thead
+        thead.addEventListener('click', (e) => {
+          const th = e.target.closest('th[data-col]');
+          if (!th || NO_SORT.has(th.dataset.col)) return;
+          const col = th.dataset.col;
+          sortDir = sortCol === col && sortDir === 'asc' ? 'desc' : 'asc';
+          sortCol = col;
+          refresh();
+        });
+
+        // Body
+        const tbody = document.createElement('tbody');
+        rows.forEach((row, idx) => {
+          const tr = document.createElement('tr');
+          tr.dataset.rowIdx = idx;
+          columns.forEach((col) => {
+            const td = document.createElement('td');
+            const val = String(row[col] ?? '');
+
+            if (col === 'description' && val.length > DESC_LIMIT) {
+              td.className = 'col-desc';
+              td.innerHTML =
+                `<span class="desc-short">${escHtml(val.slice(0, DESC_LIMIT))}&hellip;</span>` +
+                `<span class="desc-full" style="display:none">${escHtml(val)}</span>` +
+                `<button class="desc-btn" type="button">▾ mehr</button>`;
+            } else if (col === 'url') {
+              td.innerHTML = `<a href="${escHtml(val)}" target="_blank" rel="noopener noreferrer">Öffnen ↗</a>`;
+            } else {
+              td.textContent = val;
+            }
+
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        // Row click → drawer (ignore clicks on links and desc-btn)
+        tbody.addEventListener('click', (e) => {
+          if (e.target.closest('a') || e.target.closest('.desc-btn')) return;
+          const tr = e.target.closest('tr[data-row-idx]');
+          if (!tr) return;
+          const row = displayedRows[Number(tr.dataset.rowIdx)];
+          if (row) openDrawer(row, tr);
+        });
+
+        // Desc expand/collapse
+        tbody.addEventListener('click', (e) => {
+          const btn = e.target.closest('.desc-btn');
+          if (!btn) return;
+          const td = btn.closest('td');
+          const sh = td.querySelector('.desc-short');
+          const fu = td.querySelector('.desc-full');
+          const exp = fu.style.display !== 'none';
+          sh.style.display = exp ? '' : 'none';
+          fu.style.display = exp ? 'none' : '';
+          btn.textContent = exp ? '▾ mehr' : '▴ weniger';
+        });
+
+        table.appendChild(tbody);
+        updateSortHeaders();
+      }
+
+      function updateSortHeaders() {
+        document.querySelectorAll('#resultsTable th[data-col]').forEach((th) => {
+          const col = th.dataset.col;
+          const icon = th.querySelector('.sort-icon');
+          if (!icon) return;
+          th.classList.toggle('sorted', col === sortCol);
+          icon.textContent = col !== sortCol ? '↕' : sortDir === 'asc' ? '↑' : '↓';
+        });
+      }
+
+      // ─── Filter input ────────────────────────────────────────────────────────
+      document.getElementById('filterInput').addEventListener('input', refresh);
+
+      // ─── Drawer ─────────────────────────────────────────────────────────────
+      function openDrawer(row, trEl) {
+        // Highlight active row
+        if (activeRowEl) activeRowEl.classList.remove('row-active');
+        activeRowEl = trEl;
+        if (trEl) trEl.classList.add('row-active');
+
+        document.getElementById('dTitle').textContent = row.title || '–';
+
+        const fields = [
+          ['Unternehmen',     row.company],
+          ['Ort',             [row.location, row.zip, row.state].filter(Boolean).join(', ')],
+          ['Datum',           row.posted_at],
+          ['Arbeitszeit',     row.working_time],
+          ['Dienstverhältnis', row.employment_type],
+          ['Quelle',          row.job_offer_type],
+          ['Ausbildung',      row.education || '–'],
+        ];
+        document.getElementById('dMeta').innerHTML = fields
+          .map(([label, val]) =>
+            `<div class="d-field"><label>${escHtml(label)}</label><span>${escHtml(String(val ?? '–'))}</span></div>`)
+          .join('');
+
+        document.getElementById('dDesc').textContent = row.description || '–';
+        document.getElementById('dLink').href = row.url || '#';
+
+        document.getElementById('drawer').hidden = false;
+        document.getElementById('drawerBackdrop').hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeDrawer() {
+        document.getElementById('drawer').hidden = true;
+        document.getElementById('drawerBackdrop').hidden = true;
+        document.body.style.overflow = '';
+        if (activeRowEl) { activeRowEl.classList.remove('row-active'); activeRowEl = null; }
+      }
+
+      document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+      document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
+      document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !document.getElementById('drawer').hidden) closeDrawer();
+      });
+
+      // ─── Downloads ───────────────────────────────────────────────────────────
+      function toCsv(rows) {
+        if (!rows.length) return '';
+        const hs = Object.keys(rows[0]);
+        const esc = (v) => {
+          const s = String(v ?? '');
+          return s.includes('"') || s.includes(',') || s.includes('\n')
+            ? `"${s.replaceAll('"', '""')}"` : s;
+        };
+        return [hs.map(h => LABELS[h] ?? h).join(','),
+                ...rows.map((r) => hs.map((h) => esc(r[h])).join(','))].join('\n');
+      }
+
+      function buildXlsx(rows) {
+        if (!rows.length) return;
+        const hs = Object.keys(rows[0]);
+        const labelRow = hs.map((h) => LABELS[h] ?? h);
+        const dataRows = rows.map((r) => hs.map((h) => r[h] ?? ''));
+
+        const ws = XLSX.utils.aoa_to_sheet([labelRow, ...dataRows]);
+
+        // Auto column widths (sample up to 500 rows for performance)
+        ws['!cols'] = hs.map((h, i) => {
+          const maxData = dataRows.slice(0, 500).reduce(
+            (m, r) => Math.max(m, String(r[i] ?? '').length), 0
+          );
+          return { wch: Math.min(Math.max(labelRow[i].length, maxData) + 2, 60) };
+        });
+
+        // Freeze first row
+        ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'AMS Jobs');
+        XLSX.writeFile(wb, 'ams_jobs.xlsx');
+      }
+
+      function downloadBlob(content, name, type) {
+        const a = Object.assign(document.createElement('a'), {
+          href: URL.createObjectURL(new Blob([content], { type })),
+          download: name,
+        });
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      // CSV downloads allRows (all data, not just filtered)
+      document.getElementById('csvBtn').addEventListener('click', () =>
+        downloadBlob(toCsv(allRows), 'ams_jobs.csv', 'text/csv;charset=utf-8'));
+
+      document.getElementById('xlsxBtn').addEventListener('click', () => buildXlsx(allRows));
+      document.getElementById('backBtn').addEventListener('click', () => window.close());
+
+      // ─── Load / update helpers ────────────────────────────────────────────────
+      function applyData(data) {
+        allRows = data.rows || [];
+
+        document.getElementById('streamingBadge').hidden = !data.streaming;
+
+        document.getElementById('metaSummary').textContent =
+          `${allRows.length} Jobs geladen` +
+          (data.total_results
+            ? ` (${data.total_results.toLocaleString('de-AT')} gefunden)`
+            : '');
+
+        const urlEl = document.getElementById('searchUrl');
+        if (data.search_url) { urlEl.textContent = data.search_url; urlEl.style.display = ''; }
+
+        if (data.errors?.length) {
+          document.getElementById('errors').textContent =
+            'Hinweise: ' + data.errors.join(' · ');
+        }
+
+        refresh();
+
+        document.getElementById('csvBtn').disabled  = allRows.length === 0;
+        document.getElementById('xlsxBtn').disabled = allRows.length === 0;
+      }
+
+      // ─── Live updates while streaming ────────────────────────────────────────
+      window.addEventListener('storage', (e) => {
+        if (e.key !== 'ams_results' || !e.newValue) return;
+        try {
+          closeDrawer(); // indices may shift as rows are added
+          applyData(JSON.parse(e.newValue));
+        } catch { /* ignore parse errors */ }
+      });
+
+      // ─── Initial load ────────────────────────────────────────────────────────
+      const raw = localStorage.getItem('ams_results');
+
+      if (!raw) {
+        document.getElementById('resultsTable').innerHTML =
+          '<tbody><tr><td class="empty">Keine Daten gefunden. ' +
+          '<a href="/">Zurück zur Suche</a></td></tr></tbody>';
+      } else {
+        try { applyData(JSON.parse(raw)); } catch { /* ignore */ }
+      }
+    </script>
+  </body>
+</html>

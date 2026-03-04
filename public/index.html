@@ -17,7 +17,12 @@
         <h2>Suche</h2>
         <div class="grid search-grid">
           <label class="col-query">Suche nach<input id="query" placeholder="Beruf, Kompetenz, Unternehmen ..." /></label>
-          <label class="col-location">Ort<input id="location" placeholder="Ort, PLZ, Bundesland" /></label>
+          <label class="col-location">Ort
+            <div class="autocomplete-wrap">
+              <input id="location" placeholder="Ort, PLZ, Bundesland" autocomplete="off" />
+              <ul class="ac-list" id="locationList" hidden></ul>
+            </div>
+          </label>
           <label class="col-radius">Umkreis (km)
             <select id="radius">
               <option value="5">5 km</option>
@@ -95,14 +100,14 @@
         <div class="resultHead">
           <h2>Ergebnis</h2>
           <div class="downloads">
-            <button class="ghost" id="csvBtn" type="button" disabled>CSV herunterladen</button>
-            <button class="ghost" id="xlsxBtn" type="button" disabled>Excel herunterladen</button>
+            <button class="ghost" id="openResults" type="button">Tabelle öffnen ↗</button>
+            <button class="ghost" id="csvBtn" type="button" disabled>CSV</button>
+            <button class="ghost" id="xlsxBtn" type="button" disabled>Excel</button>
           </div>
         </div>
         <p id="summary"></p>
         <pre id="searchUrl"></pre>
         <div id="errors"></div>
-        <div class="tableWrap"><table id="previewTable"></table></div>
       </section>
     </main>
 
