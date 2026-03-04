@@ -1,145 +1,77 @@
+const { createHmac, randomBytes } = require('crypto');
+
 const BASE_URL = 'https://jobs.ams.at';
-const SEARCH_PATH = '/public/emps/jobs';
+const API_PATH = '/public/emps/api/search';
+const HMAC_KEY = 'chn6bl40obysw581p33f98okhd3gm6185p791868cxfozkdko635r50xhh99v1kz';
+const PAGE_SIZE = 30;
 
-function buildSearchUrl({ query = '', location = '', radius = '', filters = [] }) {
-  const params = new URLSearchParams();
-  if (query) params.append('query', query);
-  if (location) params.append('location', location);
-  if (radius !== '' && radius !== null && radius !== undefined) params.append('radius', String(radius));
-
-  for (const filter of filters) {
-    const key = String(filter?.key || '').trim();
-    const value = String(filter?.value || '').trim();
-    if (key && value) params.append(key, value);
-  }
-
-  const queryString = params.toString();
-  return queryString ? `${BASE_URL}${SEARCH_PATH}?${queryString}` : `${BASE_URL}${SEARCH_PATH}`;
-}
-
-async function fetchHtml(url) {
-  const response = await fetch(url, {
-    headers: {
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    },
+function buildRequest(urlPath, paramPairs) {
+  const sorted = [...paramPairs].sort((a, b) => {
+    const keyCmp = a[0].localeCompare(b[0]);
+    return keyCmp !== 0 ? keyCmp : a[1].localeCompare(b[1]);
   });
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-  return response.text();
-}
 
-function parseJobLinks(html) {
-  const links = [...html.matchAll(/href=["']([^"']*\/public\/emps\/job\/[^"']+)["']/gi)].map((match) => match[1]);
-  const nextMatch = html.match(/<a[^>]*rel=["']next["'][^>]*href=["']([^"']+)["']/i) ||
-    html.match(/<a[^>]*href=["']([^"']+)["'][^>]*rel=["']next["']/i);
+  const sortedStr = sorted
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+
+  const random = randomBytes(8).toString('hex');
+  const message = 'GET' + urlPath + sortedStr + 'X-AMS-ACCESS-TOKEN-RANDOM=' + random;
+  const token = createHmac('sha512', HMAC_KEY).update(message, 'utf8').digest('hex');
 
   return {
-    links: [...new Set(links)].map((link) => new URL(link, BASE_URL).toString()),
-    nextLink: nextMatch?.[1] ? new URL(nextMatch[1], BASE_URL).toString() : null,
+    url: `${BASE_URL}${urlPath}?${sortedStr}`,
+    headers: {
+      'x-ams-access-token': token,
+      'x-ams-access-token-random': random,
+    },
   };
 }
 
-function parseJsonLd(html) {
-  const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+async function searchPage(baseParamPairs, page) {
+  const paramPairs = [...baseParamPairs, ['page', String(page)]];
+  const { url, headers } = buildRequest(API_PATH, paramPairs);
 
-  for (const raw of scripts) {
-    const text = raw.trim();
-    if (!text) continue;
-    try {
-      const parsed = JSON.parse(text);
-      const candidates = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed?.['@graph'])
-          ? parsed['@graph']
-          : [parsed];
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Referer': 'https://jobs.ams.at/public/emps/jobs',
+      ...headers,
+    },
+  });
 
-      const hit = candidates.find((item) => item && item['@type'] === 'JobPosting');
-      if (hit) return hit;
-    } catch {
-      // ignore invalid blocks
-    }
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${response.statusText}`);
   }
 
-  return {};
+  return response.json();
 }
 
-function cleanHtmlText(value) {
+function stripHtml(value) {
   return String(value || '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function extractJobId(url) {
-  const match = url.match(/\/job\/(\d+)/);
-  return match ? match[1] : '';
-}
-
-async function parseJobDetail(url) {
-  const html = await fetchHtml(url);
-  const payload = parseJsonLd(html);
-  const organization = typeof payload?.hiringOrganization === 'object' ? payload.hiringOrganization : {};
-  const location = typeof payload?.jobLocation === 'object' ? payload.jobLocation : {};
-  const address = typeof location?.address === 'object' ? location.address : {};
-
+function mapJob(job) {
+  const addr = job.company?.address || {};
   return {
-    id: extractJobId(url),
-    title: String(payload?.title || '').trim(),
-    company: String(organization?.name || '').trim(),
-    location: String(address?.addressLocality || '').trim(),
-    posted_at: String(payload?.datePosted || '').trim(),
-    employment_type: String(payload?.employmentType || '').trim(),
-    url,
-    description: cleanHtmlText(payload?.description || ''),
+    id: String(job.id || ''),
+    title: String(job.title || ''),
+    company: String(job.company?.name || ''),
+    location: String(addr.municipality || ''),
+    state: String(addr.federalState || ''),
+    zip: String(addr.zipCode || ''),
+    posted_at: String(job.lastUpdatedAt || '').split('T')[0],
+    working_time: String(job.workingTime?.description || ''),
+    employment_type: String(job.employmentRelationship?.description || ''),
+    job_offer_type: String(job.jobOfferType?.description || ''),
+    education: (job.educationLevels || []).map((e) => e.description).join(', '),
+    description: stripHtml(job.summary),
+    url: `${BASE_URL}/public/emps/job/${job.id}`,
   };
-}
-
-function nextPageUrl(url) {
-  const parsed = new URL(url);
-  const current = Number(parsed.searchParams.get('page') || '1');
-  parsed.searchParams.set('page', String(current + 1));
-  return parsed.toString();
-}
-
-async function collectJobs(searchUrl, maxPages, maxJobs) {
-  const seenPages = new Set();
-  const allJobLinks = [];
-  const errors = [];
-  let current = searchUrl;
-
-  for (let i = 0; i < maxPages; i += 1) {
-    if (seenPages.has(current)) break;
-    seenPages.add(current);
-
-    try {
-      const html = await fetchHtml(current);
-      const { links, nextLink } = parseJobLinks(html);
-
-      for (const link of links) {
-        if (!allJobLinks.includes(link)) allJobLinks.push(link);
-        if (allJobLinks.length >= maxJobs) break;
-      }
-
-      if (allJobLinks.length >= maxJobs) break;
-      current = nextLink || nextPageUrl(current);
-    } catch (error) {
-      errors.push(`Suchergebnisseite konnte nicht geladen werden ${current}: ${error.message}`);
-      break;
-    }
-  }
-
-  const jobs = [];
-  for (const link of allJobLinks.slice(0, maxJobs)) {
-    try {
-      jobs.push(await parseJobDetail(link));
-    } catch (error) {
-      errors.push(`Detailseite konnte nicht verarbeitet werden ${link}: ${error.message}`);
-    }
-  }
-
-  return { jobs, errors };
 }
 
 module.exports = async function handler(req, res) {
@@ -148,24 +80,59 @@ module.exports = async function handler(req, res) {
   }
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-  const payload = {
-    query: String(body.query || '').trim(),
-    location: String(body.location || '').trim(),
-    radius: String(body.radius ?? '').trim(),
-    filters: Array.isArray(body.filters) ? body.filters : [],
-  };
-
+  const query = String(body.query || '').trim();
+  const location = String(body.location || '').trim();
+  const radius = String(body.radius ?? '').trim();
   const maxPages = Math.min(Math.max(Number(body.max_pages || 5), 1), 100);
   const maxJobs = Math.min(Math.max(Number(body.max_jobs || 200), 1), 3000);
 
-  const searchUrl = buildSearchUrl(payload);
-  const { jobs, errors } = await collectJobs(searchUrl, maxPages, maxJobs);
+  const baseParamPairs = [
+    ['pageSize', String(Math.min(PAGE_SIZE, maxJobs))],
+    ['sortField', '_SCORE'],
+  ];
+
+  if (query) baseParamPairs.push(['query', query]);
+  if (location) baseParamPairs.push(['location', location]);
+  if (radius && radius !== '0') baseParamPairs.push(['vicinity', radius]);
+
+  const filters = Array.isArray(body.filters) ? body.filters : [];
+  for (const filter of filters) {
+    const key = String(filter?.key || '').trim();
+    const value = String(filter?.value || '').trim();
+    if (key && value) baseParamPairs.push([key, value]);
+  }
+
+  const displayParams = new URLSearchParams();
+  if (query) displayParams.set('query', query);
+  if (location) displayParams.set('location', location);
+  if (radius && radius !== '0') displayParams.set('vicinity', radius);
+  const searchUrl = `${BASE_URL}${API_PATH}?${displayParams.toString()}`;
+
+  const allJobs = [];
+  const errors = [];
+
+  for (let page = 1; page <= maxPages && allJobs.length < maxJobs; page++) {
+    try {
+      const data = await searchPage(baseParamPairs, page);
+      const results = Array.isArray(data.results) ? data.results : [];
+
+      for (const job of results) {
+        if (allJobs.length >= maxJobs) break;
+        allJobs.push(mapJob(job));
+      }
+
+      if (results.length === 0 || page >= (data.totalPages || 1)) break;
+    } catch (error) {
+      errors.push(`Seite ${page} konnte nicht geladen werden: ${error.message}`);
+      break;
+    }
+  }
 
   return res.status(200).json({
     search_url: searchUrl,
-    job_count: jobs.length,
+    job_count: allJobs.length,
     errors,
-    preview: jobs.slice(0, 20),
-    rows: jobs,
+    preview: allJobs.slice(0, 20),
+    rows: allJobs,
   });
 };

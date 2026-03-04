@@ -37,11 +37,11 @@
         <h2>Quelle der Stellenangebote</h2>
         <p class="muted">Zusätzlich zu AMS-Stellenangeboten:</p>
         <div class="option-list">
-          <label class="check"><input type="checkbox" data-filter-key="JOB_OFFER_TYPE" value="SB_WKO" checked /> Unternehmensangebote aus dem AMS eJob-Room</label>
-          <label class="check"><input type="checkbox" data-filter-key="JOB_OFFER_TYPE" value="IJ" checked /> Stellenangebote aus dem Internet</label>
-          <label class="check"><input type="checkbox" data-filter-key="JOB_OFFER_TYPE" value="BA" checked /> Bundesagentur für Arbeit (DE)</label>
-          <label class="check"><input type="checkbox" data-filter-key="JOB_OFFER_TYPE" value="BZ" checked /> Weitere Partnerbörse</label>
-          <label class="check"><input type="checkbox" data-filter-key="JOB_OFFER_TYPE" value="TN" checked /> Tagesaktuelle Inserate</label>
+          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="SB_WKO" checked /> Unternehmensangebote aus dem AMS eJob-Room</label>
+          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="IJ" checked /> Stellenangebote aus dem Internet</label>
+          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="BA" checked /> Bundesagentur für Arbeit (DE)</label>
+          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="BZ" checked /> Weitere Partnerbörse</label>
+          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="TN" checked /> Tagesaktuelle Inserate</label>
         </div>
       </section>
 
@@ -49,41 +49,41 @@
         <article class="panel">
           <h3>Arbeitszeit</h3>
           <div class="option-list">
-            <label class="check"><input type="checkbox" data-filter-key="WORKING_TIME" value="VZ" /> Vollzeit</label>
-            <label class="check"><input type="checkbox" data-filter-key="WORKING_TIME" value="TZ" /> Teilzeit</label>
+            <label class="check"><input type="checkbox" data-filter-key="workingTime" value="V" /> Vollzeit</label>
+            <label class="check"><input type="checkbox" data-filter-key="workingTime" value="T" /> Teilzeit</label>
           </div>
         </article>
 
         <article class="panel">
           <h3>Aktualität</h3>
           <div class="option-list">
-            <label class="radio"><input type="radio" name="actuality" data-filter-key="ACTUALITY" value="" checked /> Alle</label>
-            <label class="radio"><input type="radio" name="actuality" data-filter-key="ACTUALITY" value="24H" /> in den letzten 24 Stunden</label>
-            <label class="radio"><input type="radio" name="actuality" data-filter-key="ACTUALITY" value="2D" /> in den letzten zwei Tagen</label>
-            <label class="radio"><input type="radio" name="actuality" data-filter-key="ACTUALITY" value="1W" /> in der letzten Woche</label>
-            <label class="radio"><input type="radio" name="actuality" data-filter-key="ACTUALITY" value="1M" /> im letzten Monat</label>
+            <label class="radio"><input type="radio" name="actuality" data-filter-key="period" value="" checked /> Alle</label>
+            <label class="radio"><input type="radio" name="actuality" data-filter-key="period" value="LAST_24_HOURS" /> in den letzten 24 Stunden</label>
+            <label class="radio"><input type="radio" name="actuality" data-filter-key="period" value="LAST_2_DAYS" /> in den letzten zwei Tagen</label>
+            <label class="radio"><input type="radio" name="actuality" data-filter-key="period" value="LAST_WEEK" /> in der letzten Woche</label>
+            <label class="radio"><input type="radio" name="actuality" data-filter-key="period" value="LAST_MONTH" /> im letzten Monat</label>
           </div>
         </article>
 
         <article class="panel">
           <h3>Dienstverhältnis</h3>
           <div class="option-list">
-            <label class="check"><input type="checkbox" data-filter-key="EMPLOYMENT_TYPE" value="WORKER_EMPLOYEE" /> ArbeiterInnen/Angestellte</label>
-            <label class="check"><input type="checkbox" data-filter-key="EMPLOYMENT_TYPE" value="APPRENTICE" /> Lehrstelle</label>
-            <label class="check"><input type="checkbox" data-filter-key="EMPLOYMENT_TYPE" value="SEASONAL" /> Saisonstelle</label>
-            <label class="check"><input type="checkbox" data-filter-key="EMPLOYMENT_TYPE" value="HOLIDAY" /> Ferialstelle</label>
-            <label class="check"><input type="checkbox" data-filter-key="EMPLOYMENT_TYPE" value="OTHER" /> Sonstiges Beschäftigungsverhältnis</label>
+            <label class="check"><input type="checkbox" data-filter-key="employmentRelationship" value="AA" /> ArbeiterInnen/Angestellte</label>
+            <label class="check"><input type="checkbox" data-filter-key="employmentRelationship" value="LS" /> Lehrstelle</label>
+            <label class="check"><input type="checkbox" data-filter-key="employmentRelationship" value="SS" /> Saisonstelle</label>
+            <label class="check"><input type="checkbox" data-filter-key="employmentRelationship" value="FS" /> Ferialstelle</label>
+            <label class="check"><input type="checkbox" data-filter-key="employmentRelationship" value="BB" /> Sonstiges Beschäftigungsverhältnis</label>
           </div>
         </article>
 
         <article class="panel">
           <h3>Ausbildung</h3>
           <div class="option-list">
-            <label class="check"><input type="checkbox" data-filter-key="EDUCATION" value="COMPULSORY" /> Keine Ausbildung/Pflichtschule</label>
-            <label class="check"><input type="checkbox" data-filter-key="EDUCATION" value="MIDDLE" /> Berufsbildende mittlere Schule</label>
-            <label class="check"><input type="checkbox" data-filter-key="EDUCATION" value="APPRENTICE_MASTER" /> Lehre/Lehre mit Meisterprüfung</label>
-            <label class="check"><input type="checkbox" data-filter-key="EDUCATION" value="MATURA" /> Matura</label>
-            <label class="check"><input type="checkbox" data-filter-key="EDUCATION" value="UNIVERSITY" /> Fachhochschule/Universität</label>
+            <label class="check"><input type="checkbox" data-filter-key="educationLevels" value="P*" /> Keine Ausbildung/Pflichtschule</label>
+            <label class="check"><input type="checkbox" data-filter-key="educationLevels" value="M*" /> Berufsbildende mittlere Schule</label>
+            <label class="check"><input type="checkbox" data-filter-key="educationLevels" value="L*" /> Lehre/Lehre mit Meisterprüfung</label>
+            <label class="check"><input type="checkbox" data-filter-key="educationLevels" value="H*" /> Matura</label>
+            <label class="check"><input type="checkbox" data-filter-key="educationLevels" value="U*" /> Fachhochschule/Universität</label>
           </div>
         </article>
       </section>
