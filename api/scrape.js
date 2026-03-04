@@ -10,14 +10,13 @@ function buildRequest(urlPath, paramPairs) {
     const k = a[0].localeCompare(b[0]);
     return k !== 0 ? k : a[1].localeCompare(b[1]);
   });
-  const sortedStr = sorted
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join('&');
+  const rawStr  = sorted.map(([k, v]) => `${k}=${v}`).join('&');
+  const urlStr  = sorted.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
   const random = randomBytes(8).toString('hex');
-  const message = 'GET' + urlPath + sortedStr + 'X-AMS-ACCESS-TOKEN-RANDOM=' + random;
+  const message = 'GET' + urlPath + rawStr + 'X-AMS-ACCESS-TOKEN-RANDOM=' + random;
   const token = createHmac('sha512', HMAC_KEY).update(message, 'utf8').digest('hex');
   return {
-    url: `${BASE_URL}${urlPath}?${sortedStr}`,
+    url: `${BASE_URL}${urlPath}?${urlStr}`,
     headers: { 'x-ams-access-token': token, 'x-ams-access-token-random': random },
   };
 }

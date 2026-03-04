@@ -10,14 +10,16 @@ function buildRequest(urlPath, paramPairs) {
     const k = a[0].localeCompare(b[0]);
     return k !== 0 ? k : a[1].localeCompare(b[1]);
   });
-  const sortedStr = sorted
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join('&');
+  // HMAC message is signed with raw (unencoded) values — the server decodes
+  // query params before verifying, so encoding them would break the signature
+  // for any non-ASCII characters (Umlauts, etc.)
+  const rawStr  = sorted.map(([k, v]) => `${k}=${v}`).join('&');
+  const urlStr  = sorted.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
   const random = randomBytes(8).toString('hex');
-  const message = 'GET' + urlPath + sortedStr + 'X-AMS-ACCESS-TOKEN-RANDOM=' + random;
+  const message = 'GET' + urlPath + rawStr + 'X-AMS-ACCESS-TOKEN-RANDOM=' + random;
   const token = createHmac('sha512', HMAC_KEY).update(message, 'utf8').digest('hex');
   return {
-    url: `${BASE_URL}${urlPath}?${sortedStr}`,
+    url: `${BASE_URL}${urlPath}?${urlStr}`,
     headers: { 'x-ams-access-token': token, 'x-ams-access-token-random': random },
   };
 }
@@ -71,17 +73,26 @@ async function fetchPageWithRetry(paramPairs, maxRetries = 4) {
           ...headers,
         },
       });
-      if (response.status === 429) {
-        lastErr = new Error(`429 Zu viele Anfragen (Versuch ${attempt + 1}/${maxRetries + 1})`);
+      if (!response.ok) {
+        const hints = {
+          400: 'Ungültige Suchanfrage (400) – wahrscheinlich wurde ein Ort eingetippt statt aus der Vorschlagsliste gewählt, oder der Umkreis ist ohne gültigen Ort gesetzt.',
+          401: 'Keine Berechtigung (401) – kurzzeitiger API-Fehler oder der interne Schlüssel ist abgelaufen. Bei wiederholtem Auftreten den Betreiber informieren.',
+          403: 'Zugriff verweigert (403) – die Anfrage wurde vom AMS-Server blockiert.',
+          429: 'Zu viele Anfragen (429) – Anfrage wird wiederholt …',
+          500: 'AMS-Server-Fehler (500) – vorübergehender Fehler auf der AMS-Seite, wird wiederholt …',
+          502: 'AMS nicht erreichbar (502) – vorübergehender Netzwerkfehler, wird wiederholt …',
+          503: 'AMS nicht verfügbar (503) – Server vorübergehend überlastet, wird wiederholt …',
+          504: 'AMS-Timeout (504) – der AMS-Server antwortet nicht, wird wiederholt …',
+        };
+        const msg = hints[response.status] ?? `AMS API Fehler: ${response.status}`;
+        // 400 and 403 won't succeed on retry; everything else might
+        if (response.status === 400 || response.status === 403) throw new Error(msg);
+        lastErr = new Error(msg);
         delay = Math.min(delay * 2, 16000);
         continue;
       }
-      if (!response.ok) {
-        throw new Error(`AMS API Fehler: ${response.status}`);
-      }
       return await response.json();
     } catch (err) {
-      if (err.message.startsWith('AMS API')) throw err; // non-retryable
       lastErr = err;
       delay = Math.min(delay * 2, 16000);
     }
