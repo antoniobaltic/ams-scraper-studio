@@ -45,6 +45,7 @@ input, select {
 }
 select { appearance: none; -webkit-appearance: none; cursor: pointer; }
 select:disabled { opacity: .45; cursor: not-allowed; background: #f0f2f5; }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 h2 { margin: 0 0 8px; font-size: 1rem; }
 h3 { margin: 0 0 10px; font-size: 1.05rem; }
 .muted { margin: 0 0 8px; color: var(--muted); font-size: .84rem; }
@@ -59,6 +60,7 @@ button.ghost { border-color: #c9d2dd; background: #fff; color: var(--text); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .actions-card { display: flex; align-items: center; gap: 10px; }
 #status { color: var(--muted); font-size: .9rem; }
+#status.error { color: #b91c1c; font-weight: 600; }
 .resultHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .downloads { display: flex; gap: 8px; }
 pre { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: .79rem; margin: 0 0 8px; }

@@ -1,6 +1,7 @@
 'use strict';
 
 const runBtn = document.getElementById('run');
+const clearBtn = document.getElementById('clear');
 const statusEl = document.getElementById('status');
 const resultCard = document.getElementById('resultCard');
 const csvBtn = document.getElementById('csvBtn');
@@ -75,6 +76,36 @@ function restoreState() {
 // Persist on any form input/change (event bubbles up to layout)
 document.querySelector('.layout').addEventListener('input', saveState);
 document.querySelector('.layout').addEventListener('change', saveState);
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+
+function resetForm() {
+  document.getElementById('query').value = '';
+  locationInput.value = '';
+  locationId = '';
+  updateRadiusState();
+  document.getElementById('maxPages').value = '10';
+  document.getElementById('maxJobs').value = '120';
+
+  // Restore default checkbox/radio states
+  document.querySelectorAll('input[data-filter-key]').forEach((el) => {
+    if (el.type === 'checkbox') {
+      // Default: jobOfferTypes SB_WKO, IJ, BA checked; everything else unchecked
+      el.checked = el.dataset.filterKey === 'jobOfferTypes' &&
+        ['SB_WKO', 'IJ', 'BA'].includes(el.value);
+    } else if (el.type === 'radio') {
+      el.checked = el.value === ''; // "Alle" radio
+    }
+  });
+
+  resultCard.hidden = true;
+  latestRows = [];
+  statusEl.textContent = '';
+  statusEl.className = '';
+  try { localStorage.removeItem('ams_search_state'); } catch (_) {}
+}
+
+clearBtn.addEventListener('click', resetForm);
 
 // ─── Location autocomplete ────────────────────────────────────────────────────
 
@@ -220,7 +251,9 @@ openResultsBtn.addEventListener('click', openResultsTab);
 runBtn.addEventListener('click', async () => {
   saveState();
   statusEl.textContent = 'Suche läuft …';
+  statusEl.className = '';
   runBtn.disabled = true;
+  runBtn.textContent = 'Suche läuft …';
   resultCard.hidden = true;
 
   // Open the results tab now while we still have the user gesture context,
@@ -325,10 +358,13 @@ runBtn.addEventListener('click', async () => {
     csvBtn.disabled  = !allRows.length;
     xlsxBtn.disabled = !allRows.length;
     statusEl.textContent = 'Fertig.';
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     statusEl.textContent = `Fehler: ${err.message}`;
+    statusEl.className = 'error';
   } finally {
     runBtn.disabled = false;
+    runBtn.textContent = 'Jetzt suchen \u0026 exportieren';
   }
 });
 
