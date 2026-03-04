@@ -222,57 +222,90 @@ runBtn.addEventListener('click', async () => {
   const maxJobs  = Math.min(Math.max(Number(document.getElementById('maxJobs').value), 1), 3000);
   const filters  = sammleFilter();
 
+  // Build a human-readable search URL up front (needed for incremental persist)
+  const dp = new URLSearchParams({ sortField: '_SCORE' });
+  if (query)              dp.set('query', query);
+  if (location)           dp.set('location', location);
+  if (location && radius) dp.set('vicinity', radius);
+  const searchUrl = `https://jobs.ams.at/public/emps/api/search?${dp}`;
+
   const payload = {
     query, location, filters,
     locationId: locationId || undefined,
-    radius,
+    radius, maxPages, maxJobs,
   };
 
   const allRows = [];
   const errors  = [];
-  let totalPages   = 1;
-  let totalResults = 0;
+  let totalResults     = 0;
+  let resultsTabOpened = false;
+
+  function persistResults(streaming) {
+    localStorage.setItem('ams_results', JSON.stringify({
+      job_count:     allRows.length,
+      total_results: totalResults,
+      search_url:    searchUrl,
+      errors,
+      rows:          allRows,
+      streaming,
+    }));
+  }
 
   try {
-    for (let page = 1; page <= maxPages && allRows.length < maxJobs; page++) {
-      statusEl.textContent = totalPages > 1
-        ? `Seite ${page} von ${Math.min(maxPages, totalPages)} wird geladen …`
-        : `Seite ${page} wird geladen …`;
-
-      const res  = await fetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, page }),
-      });
+    const res = await fetch('/api/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Suche fehlgeschlagen');
+      throw new Error(data.error || 'Suche fehlgeschlagen');
+    }
 
-      totalPages   = data.totalPages   || 1;
-      totalResults = data.totalResults || 0;
+    // Read Server-Sent Events incrementally
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
 
-      const slice = (data.rows || []).slice(0, maxJobs - allRows.length);
-      allRows.push(...slice);
-      if (data.errors?.length) errors.push(...data.errors);
-      if (page >= totalPages) break;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop(); // keep any incomplete trailing chunk
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        let event;
+        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (event.type === 'page') {
+          totalResults = event.totalResults || totalResults;
+          allRows.push(...event.rows);
+          persistResults(true); // streaming still in progress
+
+          // Open results tab as soon as the first page arrives
+          if (!resultsTabOpened) {
+            resultsTabOpened = true;
+            openResultsTab();
+          }
+
+          statusEl.textContent =
+            `${allRows.length}` +
+            (totalResults ? ` von ${totalResults.toLocaleString('de-AT')}` : '') +
+            ` Jobs geladen (Seite ${event.page}` +
+            (event.totalPages > 1 ? ` von ${Math.min(maxPages, event.totalPages)}` : '') +
+            ') …';
+
+        } else if (event.type === 'error') {
+          errors.push(`Seite ${event.page}: ${event.message}`);
+        }
+      }
     }
 
     latestRows = allRows;
-
-    // Build a human-readable search URL
-    const dp = new URLSearchParams({ sortField: '_SCORE' });
-    if (query)            dp.set('query', query);
-    if (location)         dp.set('location', location);
-    if (location && radius) dp.set('vicinity', radius);
-    const searchUrl = `https://jobs.ams.at/public/emps/api/search?${dp}`;
-
-    // Persist for results.html
-    localStorage.setItem('ams_results', JSON.stringify({
-      job_count: allRows.length,
-      total_results: totalResults,
-      search_url: searchUrl,
-      errors,
-      rows: allRows,
-    }));
+    persistResults(false); // mark stream complete
 
     resultCard.hidden = false;
     document.getElementById('summary').textContent =
@@ -286,8 +319,6 @@ runBtn.addEventListener('click', async () => {
     csvBtn.disabled  = !allRows.length;
     xlsxBtn.disabled = !allRows.length;
     statusEl.textContent = 'Fertig.';
-
-    openResultsTab();
   } catch (err) {
     statusEl.textContent = `Fehler: ${err.message}`;
   } finally {

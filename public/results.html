@@ -55,6 +55,16 @@
       }
       .filter-count { font-size: .8rem; color: var(--muted); white-space: nowrap; }
 
+      /* streaming indicator */
+      .streaming-badge {
+        font-size: .78rem;
+        color: var(--accent);
+        white-space: nowrap;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      .streaming-badge[hidden] { display: none; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
       .btn {
         border: 1px solid #1f58d3;
         background: var(--accent);
@@ -260,6 +270,7 @@
       <input class="filter-input" id="filterInput"
              type="search" placeholder="Filtern nach Titel, Unternehmen, Ort …" />
       <span class="filter-count" id="filterCount"></span>
+      <span class="streaming-badge" id="streamingBadge" hidden>⟳ Lädt …</span>
       <span class="meta" id="metaSummary"></span>
       <button class="btn ghost" id="csvBtn" disabled>CSV</button>
       <button class="btn ghost" id="xlsxBtn" disabled>Excel</button>
@@ -573,19 +584,14 @@
       document.getElementById('xlsxBtn').addEventListener('click', () => buildXlsx(allRows));
       document.getElementById('backBtn').addEventListener('click', () => window.close());
 
-      // ─── Load data ───────────────────────────────────────────────────────────
-      const raw = localStorage.getItem('ams_results');
-
-      if (!raw) {
-        document.getElementById('resultsTable').innerHTML =
-          '<tbody><tr><td class="empty">Keine Daten gefunden. ' +
-          '<a href="/">Zurück zur Suche</a></td></tr></tbody>';
-      } else {
-        const data = JSON.parse(raw);
+      // ─── Load / update helpers ────────────────────────────────────────────────
+      function applyData(data) {
         allRows = data.rows || [];
 
+        document.getElementById('streamingBadge').hidden = !data.streaming;
+
         document.getElementById('metaSummary').textContent =
-          `${data.job_count ?? allRows.length} Jobs geladen` +
+          `${allRows.length} Jobs geladen` +
           (data.total_results
             ? ` (${data.total_results.toLocaleString('de-AT')} gefunden)`
             : '');
@@ -598,10 +604,30 @@
             'Hinweise: ' + data.errors.join(' · ');
         }
 
-        refresh(); // initial render
+        refresh();
 
         document.getElementById('csvBtn').disabled  = allRows.length === 0;
         document.getElementById('xlsxBtn').disabled = allRows.length === 0;
+      }
+
+      // ─── Live updates while streaming ────────────────────────────────────────
+      window.addEventListener('storage', (e) => {
+        if (e.key !== 'ams_results' || !e.newValue) return;
+        try {
+          closeDrawer(); // indices may shift as rows are added
+          applyData(JSON.parse(e.newValue));
+        } catch { /* ignore parse errors */ }
+      });
+
+      // ─── Initial load ────────────────────────────────────────────────────────
+      const raw = localStorage.getItem('ams_results');
+
+      if (!raw) {
+        document.getElementById('resultsTable').innerHTML =
+          '<tbody><tr><td class="empty">Keine Daten gefunden. ' +
+          '<a href="/">Zurück zur Suche</a></td></tr></tbody>';
+      } else {
+        try { applyData(JSON.parse(raw)); } catch { /* ignore */ }
       }
     </script>
   </body>
