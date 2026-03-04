@@ -14,46 +14,49 @@
       </header>
 
       <section class="card">
-        <div class="grid">
-          <label>
-            Suche nach
-            <input id="query" placeholder="Beruf, Kompetenz, Unternehmen..." />
-          </label>
-          <label>
-            Ort
-            <input id="location" placeholder="Ort, PLZ, Bundesland" />
-          </label>
-          <label>
-            Umkreis (km)
-            <input id="radius" type="number" min="0" value="0" />
-          </label>
-          <label>
-            Max Seiten
-            <input id="maxPages" type="number" min="1" max="100" value="5" />
-          </label>
-          <label>
-            Max Jobs
-            <input id="maxJobs" type="number" min="1" max="2000" value="200" />
-          </label>
-        </div>
+        <form id="scrapeForm">
+          <div class="grid">
+            <label>
+              Suche nach
+              <input id="query" placeholder="Beruf, Kompetenz, Unternehmen..." />
+            </label>
+            <label>
+              Ort
+              <input id="location" placeholder="Ort, PLZ, Bundesland" />
+            </label>
+            <label>
+              Umkreis (km)
+              <input id="radius" type="number" min="0" value="0" />
+            </label>
+            <label>
+              Max Seiten
+              <input id="maxPages" type="number" min="1" max="100" value="5" />
+            </label>
+            <label>
+              Max Jobs
+              <input id="maxJobs" type="number" min="1" max="2000" value="200" />
+            </label>
+          </div>
 
-        <h2>AMS Filter (identisch zu URL Parametern)</h2>
-        <p class="muted">Beispiele: <code>JOB_OFFER_TYPE=SB_WKO</code>, <code>WORKING_TIME=VZ</code>, <code>ACTUALITY=24H</code>.</p>
-        <div id="filters"></div>
-        <button id="addFilter" class="ghost">+ Filter hinzufügen</button>
+          <h2>AMS Filter (identisch zu URL Parametern)</h2>
+          <p class="muted">Beispiele: <code>JOB_OFFER_TYPE=SB_WKO</code>, <code>WORKING_TIME=VZ</code>, <code>ACTUALITY=24H</code>.</p>
+          <div id="filters"></div>
+          <button id="addFilter" class="ghost" type="button">+ Filter hinzufügen</button>
 
-        <div class="actions">
-          <button id="run">Scrapen & Exportieren</button>
-          <span id="status"></span>
-        </div>
+          <div class="actions">
+            <button id="run" type="submit">Scrapen &amp; Exportieren</button>
+            <button id="clear" class="ghost" type="button">Zurücksetzen</button>
+            <span id="status"></span>
+          </div>
+        </form>
       </section>
 
       <section class="card" id="resultCard" hidden>
         <div class="resultHead">
           <h2>Ergebnis</h2>
           <div class="downloads">
-            <a id="csvLink" href="#">CSV</a>
-            <a id="xlsxLink" href="#">Excel</a>
+            <a id="csvLink" href="#" class="dlBtn">CSV</a>
+            <a id="xlsxLink" href="#" class="dlBtn">Excel</a>
           </div>
         </div>
         <p id="summary"></p>
