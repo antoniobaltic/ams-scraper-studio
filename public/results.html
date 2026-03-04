@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AMS Scraper – Ergebnisse</title>
+    <style>
+      :root {
+        --bg: #f3f5f7;
+        --card: #ffffff;
+        --line: #d6dce4;
+        --text: #0f1720;
+        --muted: #516071;
+        --accent: #2563eb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      /* ── Top bar ── */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+        padding: 10px 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: 1.1rem;
+        flex: 1;
+      }
+      .topbar .meta {
+        font-size: .85rem;
+        color: var(--muted);
+      }
+      .btn {
+        border: 1px solid #1f58d3;
+        background: var(--accent);
+        color: #fff;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-weight: 650;
+        cursor: pointer;
+        font-size: .88rem;
+        white-space: nowrap;
+      }
+      .btn.ghost {
+        border-color: #c9d2dd;
+        background: #fff;
+        color: var(--text);
+      }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+      /* ── Content wrapper ── */
+      .content {
+        max-width: 1540px;
+        margin: 20px auto;
+        padding: 0 28px 40px;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: .78rem;
+        margin: 0 0 14px;
+        color: var(--muted);
+      }
+      #error { color: #b91c1c; margin: 0 0 10px; }
+
+      /* ── Table ── */
+      .tableWrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--card);
+      }
+      table {
+        border-collapse: collapse;
+        font-size: .8rem;
+        table-layout: fixed;
+        width: 100%;
+        min-width: 1700px;
+      }
+      thead tr {
+        background: #f1f4f8;
+      }
+      th {
+        border-bottom: 2px solid var(--line);
+        padding: 9px 10px;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: .78rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .03em;
+      }
+      td {
+        border-bottom: 1px solid #edf0f4;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      tbody tr:last-child td { border-bottom: none; }
+      tbody tr:hover { background: #f8fafc; }
+
+      /* Description cell */
+      td.col-desc {
+        white-space: normal;
+        overflow: visible;
+        vertical-align: top;
+        line-height: 1.5;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      .desc-btn {
+        display: inline-block;
+        margin-top: 4px;
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-size: .75rem;
+        cursor: pointer;
+        padding: 0;
+        font-weight: 600;
+      }
+      .desc-btn:hover { text-decoration: underline; }
+
+      /* Link cells */
+      td a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      td a:hover { text-decoration: underline; }
+
+      /* No-data state */
+      .empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+      }
+      .empty a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>AMS Ergebnisse</h1>
+      <span class="meta" id="metaSummary"></span>
+      <button class="btn ghost" id="csvBtn" disabled>CSV herunterladen</button>
+      <button class="btn ghost" id="xlsxBtn" disabled>Excel herunterladen</button>
+      <button class="btn ghost" id="backBtn">← Tab schließen</button>
+    </header>
+
+    <div class="content">
+      <pre id="searchUrl" style="display:none"></pre>
+      <p id="errors"></p>
+      <div class="tableWrap">
+        <table id="resultsTable"><tbody class="empty"><tr><td>Lädt …</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script>
+      // Column widths (px) — total ≈ 1700 px to match min-width
+      const COL_WIDTHS = {
+        id: 58, title: 230, company: 185, location: 95, state: 125,
+        zip: 58, posted_at: 92, working_time: 85, employment_type: 165,
+        job_offer_type: 105, education: 185, description: 320, url: 70,
+      };
+      const DESC_LIMIT = 300;
+
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderTable(rows) {
+        const table = document.getElementById('resultsTable');
+        table.innerHTML = '';
+
+        if (!rows.length) {
+          table.innerHTML = '<tr><td class="empty">Keine Treffer.</td></tr>';
+          return;
+        }
+
+        const columns = Object.keys(rows[0]);
+
+        // Colgroup
+        const cg = document.createElement('colgroup');
+        columns.forEach((c) => {
+          const col = document.createElement('col');
+          col.style.width = (COL_WIDTHS[c] ?? 110) + 'px';
+          cg.appendChild(col);
+        });
+        table.appendChild(cg);
+
+        // Header
+        const LABELS = {
+          id: 'ID', title: 'Titel', company: 'Unternehmen', location: 'Ort',
+          state: 'Bundesland', zip: 'PLZ', posted_at: 'Datum',
+          working_time: 'Arbeitszeit', employment_type: 'Dienstverhältnis',
+          job_offer_type: 'Quelle', education: 'Ausbildung',
+          description: 'Beschreibung', url: 'Link',
+        };
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        columns.forEach((c) => {
+          const th = document.createElement('th');
+          th.textContent = LABELS[c] ?? c;
+          th.title = c;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        // Body
+        const tbody = document.createElement('tbody');
+        rows.forEach((row) => {
+          const tr = document.createElement('tr');
+          columns.forEach((col) => {
+            const td = document.createElement('td');
+            const val = String(row[col] ?? '');
+
+            if (col === 'description' && val.length > DESC_LIMIT) {
+              td.className = 'col-desc';
+              const short = escHtml(val.slice(0, DESC_LIMIT));
+              const full = escHtml(val);
+              td.innerHTML =
+                `<span class="desc-short">${short}&hellip;</span>` +
+                `<span class="desc-full" style="display:none">${full}</span>` +
+                `<button class="desc-btn" type="button">▾ mehr</button>`;
+            } else if (col === 'url') {
+              td.innerHTML = `<a href="${escHtml(val)}" target="_blank" rel="noopener noreferrer">Öffnen ↗</a>`;
+            } else {
+              td.textContent = val;
+            }
+
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+      }
+
+      // Description expand/collapse
+      document.getElementById('resultsTable').addEventListener('click', (e) => {
+        if (!e.target.classList.contains('desc-btn')) return;
+        const btn = e.target;
+        const td = btn.closest('td');
+        const sh = td.querySelector('.desc-short');
+        const fu = td.querySelector('.desc-full');
+        const expanded = fu.style.display !== 'none';
+        sh.style.display = expanded ? '' : 'none';
+        fu.style.display = expanded ? 'none' : '';
+        btn.textContent = expanded ? '▾ mehr' : '▴ weniger';
+      });
+
+      // Load data from localStorage
+      let allRows = [];
+      const raw = localStorage.getItem('ams_results');
+
+      if (!raw) {
+        document.getElementById('resultsTable').innerHTML =
+          '<tr><td colspan="13" class="empty">Keine Daten gefunden. ' +
+          '<a href="/">Zurück zur Suche</a></td></tr>';
+      } else {
+        const data = JSON.parse(raw);
+        allRows = data.rows || [];
+
+        document.getElementById('metaSummary').textContent =
+          `${data.job_count ?? allRows.length} Jobs`;
+
+        const urlEl = document.getElementById('searchUrl');
+        if (data.search_url) {
+          urlEl.textContent = data.search_url;
+          urlEl.style.display = '';
+        }
+
+        if (data.errors?.length) {
+          document.getElementById('errors').innerHTML =
+            `<strong>Hinweise:</strong> ${data.errors.join(' · ')}`;
+        }
+
+        renderTable(allRows);
+
+        document.getElementById('csvBtn').disabled = allRows.length === 0;
+        document.getElementById('xlsxBtn').disabled = allRows.length === 0;
+      }
+
+      // Downloads
+      function toCsv(rows) {
+        if (!rows.length) return '';
+        const headers = Object.keys(rows[0]);
+        const esc = (v) => {
+          const s = String(v ?? '');
+          return (s.includes('"') || s.includes(',') || s.includes('\n'))
+            ? `"${s.replaceAll('"', '""')}"` : s;
+        };
+        return [headers.join(','), ...rows.map((r) => headers.map((h) => esc(r[h])).join(','))].join('\n');
+      }
+
+      function downloadBlob(content, name, type) {
+        const a = Object.assign(document.createElement('a'), {
+          href: URL.createObjectURL(new Blob([content], { type })),
+          download: name,
+        });
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      document.getElementById('csvBtn').addEventListener('click', () => {
+        downloadBlob(toCsv(allRows), 'ams_jobs.csv', 'text/csv;charset=utf-8');
+      });
+
+      document.getElementById('xlsxBtn').addEventListener('click', () => {
+        if (!allRows.length) return;
+        const ws = XLSX.utils.json_to_sheet(allRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'jobs');
+        XLSX.writeFile(wb, 'ams_jobs.xlsx');
+      });
+
+      document.getElementById('backBtn').addEventListener('click', () => window.close());
+    </script>
+  </body>
+</html>
