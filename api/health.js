@@ -22,7 +22,7 @@ function buildRequest(urlPath, paramPairs) {
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     return res.status(405).json({ status: 'error', message: 'Method not allowed' });
   }
 
