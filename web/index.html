@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AMS Scraper Studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero">
+        <h1>AMS Scraper Studio</h1>
+        <p>Minimal micro-SaaS UI for Austrian AMS job exports to CSV + Excel.</p>
+      </header>
+
+      <section class="card">
+        <div class="grid">
+          <label>
+            Suche nach
+            <input id="query" placeholder="Beruf, Kompetenz, Unternehmen..." />
+          </label>
+          <label>
+            Ort
+            <input id="location" placeholder="Ort, PLZ, Bundesland" />
+          </label>
+          <label>
+            Umkreis (km)
+            <input id="radius" type="number" min="0" value="0" />
+          </label>
+          <label>
+            Max Seiten
+            <input id="maxPages" type="number" min="1" max="100" value="5" />
+          </label>
+          <label>
+            Max Jobs
+            <input id="maxJobs" type="number" min="1" max="2000" value="200" />
+          </label>
+        </div>
+
+        <h2>AMS Filter (identisch zu URL Parametern)</h2>
+        <p class="muted">Beispiele: <code>JOB_OFFER_TYPE=SB_WKO</code>, <code>WORKING_TIME=VZ</code>, <code>ACTUALITY=24H</code>.</p>
+        <div id="filters"></div>
+        <button id="addFilter" class="ghost">+ Filter hinzufügen</button>
+
+        <div class="actions">
+          <button id="run">Scrapen & Exportieren</button>
+          <span id="status"></span>
+        </div>
+      </section>
+
+      <section class="card" id="resultCard" hidden>
+        <div class="resultHead">
+          <h2>Ergebnis</h2>
+          <div class="downloads">
+            <a id="csvLink" href="#">CSV</a>
+            <a id="xlsxLink" href="#">Excel</a>
+          </div>
+        </div>
+        <p id="summary"></p>
+        <pre id="searchUrl"></pre>
+        <div id="errors"></div>
+        <div class="tableWrap">
+          <table id="previewTable"></table>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
