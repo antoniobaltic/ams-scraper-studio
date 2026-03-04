@@ -676,10 +676,8 @@
         const urlEl = document.getElementById('searchUrl');
         if (data.search_url) { urlEl.textContent = data.search_url; urlEl.style.display = ''; }
 
-        if (data.errors?.length) {
-          document.getElementById('errors').textContent =
-            'Hinweise: ' + data.errors.join(' · ');
-        }
+        document.getElementById('errors').textContent =
+          data.errors?.length ? 'Hinweise: ' + data.errors.join(' · ') : '';
 
         refresh();
 
