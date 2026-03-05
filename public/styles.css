@@ -15,6 +15,8 @@ body {
   color: var(--text);
 }
 .layout { max-width: 1080px; margin: 18px auto; padding: 0 12px 28px; display: grid; gap: 12px; }
+.hero { display: grid; gap: 6px; }
+.hero-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hero h1 { margin: 0; font-size: 1.45rem; }
 .hero p { margin: 4px 0 0; color: var(--muted); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
@@ -62,6 +64,21 @@ h3 { margin: 0 0 10px; font-size: 1.05rem; }
 button { border: 1px solid #1f58d3; background: var(--accent); color: #fff; padding: 9px 12px; border-radius: 8px; font-weight: 650; cursor: pointer; }
 button.ghost { border-color: #c9d2dd; background: #fff; color: var(--text); }
 button:disabled { opacity: .5; cursor: not-allowed; }
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c9d2dd;
+  background: #fff;
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-weight: 650;
+  text-decoration: none;
+  font-size: .84rem;
+  white-space: nowrap;
+}
+.link-btn:hover { border-color: #b7c2d0; background: #f8fafc; }
 .actions-card { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #status { color: var(--muted); font-size: .9rem; }
 #status.error { color: #b91c1c; font-weight: 600; }
@@ -102,3 +119,13 @@ pre a { color: var(--accent); }
   text-overflow: ellipsis;
 }
 .ac-list li:hover, .ac-list li.ac-active { background: #eef2ff; color: var(--accent); }
+
+/* FAQ page */
+.faq-layout { max-width: 900px; }
+.faq-headline { margin-bottom: 2px; }
+.faq-subline { margin: 0; color: var(--muted); line-height: 1.55; }
+.faq-card h2 { margin-bottom: 6px; }
+.faq-card p { margin: 0; line-height: 1.6; color: #1c2836; }
+.faq-card p + p { margin-top: 8px; }
+.faq-list { margin: 0; padding-left: 18px; color: #1c2836; line-height: 1.6; }
+.faq-list li + li { margin-top: 4px; }

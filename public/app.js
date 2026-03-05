@@ -254,8 +254,7 @@ function renderRunResult(allRows, totalResults, searchUrl, errors) {
     `${allRows.length} Jobs geladen` +
     (totalResults ? ` (${totalResults.toLocaleString('de-AT')} gesamt gefunden)` : '') +
     '.';
-  document.getElementById('searchUrl').innerHTML =
-    `<a href="${escHtml(searchUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(searchUrl)}</a>`;
+  document.getElementById('searchUrl').textContent = searchUrl;
   document.getElementById('errors').innerHTML = errors.length
     ? `<p id="error"><strong>Hinweise:</strong> ${errors.map(escHtml).join(' · ')}</p>`
     : '';
