@@ -62,7 +62,7 @@ h3 { margin: 0 0 10px; font-size: 1.05rem; }
 button { border: 1px solid #1f58d3; background: var(--accent); color: #fff; padding: 9px 12px; border-radius: 8px; font-weight: 650; cursor: pointer; }
 button.ghost { border-color: #c9d2dd; background: #fff; color: var(--text); }
 button:disabled { opacity: .5; cursor: not-allowed; }
-.actions-card { display: flex; align-items: center; gap: 10px; }
+.actions-card { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #status { color: var(--muted); font-size: .9rem; }
 #status.error { color: #b91c1c; font-weight: 600; }
 .resultHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }

@@ -1,6 +1,7 @@
 'use strict';
 
 const runBtn = document.getElementById('run');
+const cancelBtn = document.getElementById('cancel');
 const clearBtn = document.getElementById('clear');
 const statusEl = document.getElementById('status');
 const resultCard = document.getElementById('resultCard');
@@ -12,6 +13,7 @@ const locationList = document.getElementById('locationList');
 
 let locationId = '';
 let latestRows = [];
+let activeController = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,6 +108,9 @@ function resetForm() {
 }
 
 clearBtn.addEventListener('click', resetForm);
+cancelBtn.addEventListener('click', () => {
+  activeController?.abort();
+});
 
 // ─── Location autocomplete ────────────────────────────────────────────────────
 
@@ -113,7 +118,9 @@ let acTimeout = null;
 let acActiveIndex = -1;
 
 function updateRadiusState() {
-  document.getElementById('radius').disabled = !locationInput.value.trim();
+  const radiusEl = document.getElementById('radius');
+  const radiusAllowed = Boolean(locationInput.value.trim() && locationId);
+  radiusEl.disabled = !radiusAllowed;
 }
 
 locationInput.addEventListener('input', () => {
@@ -151,6 +158,7 @@ function hideAc() {
 function selectAcItem(li) {
   locationInput.value = li.dataset.text;
   locationId = li.dataset.id;
+  updateRadiusState();
   hideAc();
   saveState();
 }
@@ -239,6 +247,32 @@ function openResultsTab() {
 }
 openResultsBtn.addEventListener('click', openResultsTab);
 
+function renderRunResult(allRows, totalResults, searchUrl, errors) {
+  latestRows = allRows;
+  resultCard.hidden = false;
+  document.getElementById('summary').textContent =
+    `${allRows.length} Jobs geladen` +
+    (totalResults ? ` (${totalResults.toLocaleString('de-AT')} gesamt gefunden)` : '') +
+    '.';
+  document.getElementById('searchUrl').innerHTML =
+    `<a href="${escHtml(searchUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(searchUrl)}</a>`;
+  document.getElementById('errors').innerHTML = errors.length
+    ? `<p id="error"><strong>Hinweise:</strong> ${errors.map(escHtml).join(' · ')}</p>`
+    : '';
+
+  csvBtn.disabled = !allRows.length;
+  xlsxBtn.disabled = !allRows.length;
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setRunningState(isRunning) {
+  runBtn.disabled = isRunning;
+  clearBtn.disabled = isRunning;
+  cancelBtn.hidden = !isRunning;
+  cancelBtn.disabled = !isRunning;
+  runBtn.textContent = isRunning ? 'Suche läuft …' : 'Jetzt suchen \u0026 exportieren';
+}
+
 // ─── Main search ──────────────────────────────────────────────────────────────
 
 document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
@@ -246,9 +280,11 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
   saveState();
   statusEl.textContent = 'Suche läuft …';
   statusEl.className = '';
-  runBtn.disabled = true;
-  runBtn.textContent = 'Suche läuft …';
+  setRunningState(true);
   resultCard.hidden = true;
+  latestRows = [];
+  csvBtn.disabled = true;
+  xlsxBtn.disabled = true;
 
   // Open the results tab now while we still have the user gesture context,
   // otherwise popup blockers will prevent window.open() after the first await.
@@ -264,13 +300,13 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
   // Build a human-readable search URL up front (needed for incremental persist)
   const dp = new URLSearchParams({ sortField: '_SCORE' });
   if (query)              dp.set('query', query);
-  if (location)           dp.set('location', location);
-  if (location && radius) dp.set('vicinity', radius);
+  if (location) dp.set('location', location);
+  if (location && locationId && radius) dp.set('vicinity', radius);
   const searchUrl = `https://jobs.ams.at/public/emps/api/search?${dp}`;
 
   const payload = {
     query, location, filters,
-    locationId: locationId || undefined,
+    locationId: location && locationId ? locationId : undefined,
     radius, maxPages, maxJobs,
   };
 
@@ -279,25 +315,31 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
   let totalResults = 0;
 
   function persistResults(streaming) {
-    localStorage.setItem('ams_results', JSON.stringify({
-      job_count:     allRows.length,
-      total_results: totalResults,
-      search_url:    searchUrl,
-      errors,
-      rows:          allRows,
-      streaming,
-    }));
+    try {
+      localStorage.setItem('ams_results', JSON.stringify({
+        job_count: allRows.length,
+        total_results: totalResults,
+        search_url: searchUrl,
+        errors,
+        rows: allRows,
+        streaming,
+      }));
+    } catch (_) {}
   }
 
   try {
+    const controller = new AbortController();
+    activeController = controller;
     const res = await fetch('/api/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Suche fehlgeschlagen');
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      throw new Error(data.error || `Suche fehlgeschlagen (${res.status})`);
     }
 
     // Read Server-Sent Events incrementally
@@ -336,30 +378,26 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
       }
     }
 
-    latestRows = allRows;
     persistResults(false); // mark stream complete
     if (resultsWin) resultsWin.focus(); else openResultsTab();
-
-    resultCard.hidden = false;
-    document.getElementById('summary').textContent =
-      `${allRows.length} Jobs geladen` +
-      (totalResults ? ` (${totalResults.toLocaleString('de-AT')} gesamt gefunden)` : '') + '.';
-    document.getElementById('searchUrl').innerHTML =
-      `<a href="${escHtml(searchUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(searchUrl)}</a>`;
-    document.getElementById('errors').innerHTML = errors.length
-      ? `<p id="error"><strong>Hinweise:</strong> ${errors.join(' · ')}</p>`
-      : '';
-
-    csvBtn.disabled  = !allRows.length;
-    xlsxBtn.disabled = !allRows.length;
+    renderRunResult(allRows, totalResults, searchUrl, errors);
     statusEl.textContent = 'Fertig.';
-    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
-    statusEl.textContent = `Fehler: ${err.message}`;
-    statusEl.className = 'error';
+    if (err && err.name === 'AbortError') {
+      errors.push('Suche manuell abgebrochen.');
+      persistResults(false);
+      if (allRows.length) {
+        renderRunResult(allRows, totalResults, searchUrl, errors);
+      }
+      statusEl.textContent = `Abgebrochen (${allRows.length} Jobs geladen).`;
+      statusEl.className = '';
+    } else {
+      statusEl.textContent = `Fehler: ${err.message}`;
+      statusEl.className = 'error';
+    }
   } finally {
-    runBtn.disabled = false;
-    runBtn.textContent = 'Jetzt suchen \u0026 exportieren';
+    activeController = null;
+    setRunningState(false);
   }
 });
 

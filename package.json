@@ -7,7 +7,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "vercel dev",
-    "start": "vercel dev"
+    "dev": "node scripts/dev-server.js",
+    "dev:vercel": "npx vercel dev",
+    "start": "node scripts/dev-server.js",
+    "test": "node --test"
   }
 }
