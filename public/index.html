@@ -45,9 +45,36 @@
         <h2>Quelle der Stellenangebote</h2>
         <p class="muted">Zusätzlich zu AMS-Stellenangeboten:</p>
         <div class="option-list">
-          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="SB_WKO" checked /> Stellenangebote von Unternehmen aus dem AMS eJob-Room</label>
-          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="IJ" checked /> Stellenangebote aus dem Internet</label>
-          <label class="check"><input type="checkbox" data-filter-key="jobOfferTypes" value="BA" checked /> Stellenangebote von der Bundesagentur für Arbeit (DE)</label>
+          <label class="check">
+            <input type="checkbox" data-filter-key="jobOfferTypes" value="SB_WKO" checked />
+            <span class="check-label">
+              Stellenangebote von Unternehmen aus dem AMS eJob-Room
+              <span class="info-tip" tabindex="0" aria-label="Information zu eJob-Room">
+                i
+                <span class="info-popup">Dies sind Stellenangebote, die von Unternehmen selbst direkt im eJob-Room des AMS eingegeben werden, sowie Lehrstellen, die von Institutionen über den eJob-Room des AMS eingespielt werden. Die Wartung dieser Stellenangebote obliegt den Unternehmen bzw. Institutionen selbst.</span>
+              </span>
+            </span>
+          </label>
+          <label class="check">
+            <input type="checkbox" data-filter-key="jobOfferTypes" value="IJ" checked />
+            <span class="check-label">
+              Stellenangebote aus dem Internet
+              <span class="info-tip" tabindex="0" aria-label="Information zu Internet-Stellenangeboten">
+                i
+                <span class="info-popup">Dies sind Stellenangebote aus dem Internet von in Österreich tätigen Unternehmen und Institutionen. Diese Stellenangebote werden durch einen sogenannten Crawler aus dem Internet extrahiert und gesammelt oder durch eine Schnittstelle eingespielt. Da es sich bei diesen Stellenangeboten um Inhalte von externen Webseiten handelt, übernimmt das AMS keine Haftung für die Richtigkeit, Aktualität, Vollständigkeit und Qualität der Angaben.</span>
+              </span>
+            </span>
+          </label>
+          <label class="check">
+            <input type="checkbox" data-filter-key="jobOfferTypes" value="BA" checked />
+            <span class="check-label">
+              Stellenangebote von der Bundesagentur für Arbeit (DE)
+              <span class="info-tip" tabindex="0" aria-label="Information zu Stellenangeboten der Bundesagentur für Arbeit">
+                i
+                <span class="info-popup">Dies sind Stellenangebote, die von der Bundesagentur für Arbeit (Deutschland) dem AMS zur Verfügung gestellt werden. Diese sind ausgewählte Stellenangebote aus Deutschland.</span>
+              </span>
+            </span>
+          </label>
         </div>
       </section>
 
