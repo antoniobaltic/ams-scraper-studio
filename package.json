@@ -11,5 +11,8 @@
     "dev:vercel": "npx vercel dev",
     "start": "node scripts/dev-server.js",
     "test": "node --test"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
   }
 }

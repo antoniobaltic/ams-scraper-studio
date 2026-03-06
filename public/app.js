@@ -8,12 +8,14 @@ const resultCard = document.getElementById('resultCard');
 const csvBtn = document.getElementById('csvBtn');
 const xlsxBtn = document.getElementById('xlsxBtn');
 const openResultsBtn = document.getElementById('openResults');
+const queryInput = document.getElementById('query');
 const locationInput = document.getElementById('location');
 const locationList = document.getElementById('locationList');
 
 let locationId = '';
 let latestRows = [];
 let activeController = null;
+let isRunning = false;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -82,7 +84,7 @@ document.querySelector('.layout').addEventListener('change', saveState);
 // ─── Reset ────────────────────────────────────────────────────────────────────
 
 function resetForm() {
-  document.getElementById('query').value = '';
+  queryInput.value = '';
   locationInput.value = '';
   locationId = '';
   updateRadiusState();
@@ -105,6 +107,7 @@ function resetForm() {
   statusEl.textContent = '';
   statusEl.className = '';
   try { localStorage.removeItem('ams_search_state'); } catch (_) {}
+  updateRunAvailability();
 }
 
 clearBtn.addEventListener('click', resetForm);
@@ -208,35 +211,25 @@ document.addEventListener('click', (e) => {
 
 // ─── Downloads ────────────────────────────────────────────────────────────────
 
-function downloadBlob(content, name, type) {
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([content], { type })),
-    download: name,
-  });
-  a.click();
-  URL.revokeObjectURL(a.href);
+function canSubmitSearch() {
+  return queryInput.value.trim().length > 0;
 }
 
-function toCsv(rows) {
-  if (!rows.length) return '';
-  const hs = Object.keys(rows[0]);
-  const esc = (v) => {
-    const s = String(v ?? '');
-    return s.includes('"') || s.includes(',') || s.includes('\n')
-      ? `"${s.replaceAll('"', '""')}"` : s;
-  };
-  return [hs.join(','), ...rows.map((r) => hs.map((h) => esc(r[h])).join(','))].join('\n');
+function updateRunAvailability() {
+  runBtn.disabled = isRunning || !canSubmitSearch();
 }
 
 csvBtn.addEventListener('click', () =>
-  downloadBlob(toCsv(latestRows), 'ams_jobs.csv', 'text/csv;charset=utf-8'));
+  window.AmsExport.downloadCsv(latestRows, 'ams_jobs.csv'));
 
-xlsxBtn.addEventListener('click', () => {
+xlsxBtn.addEventListener('click', async () => {
   if (!latestRows.length) return;
-  const ws = XLSX.utils.json_to_sheet(latestRows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'jobs');
-  XLSX.writeFile(wb, 'ams_jobs.xlsx');
+  try {
+    await window.AmsExport.downloadXlsx(latestRows, 'ams_jobs.xlsx', window.ExcelJS);
+  } catch (err) {
+    statusEl.textContent = `Excel-Export fehlgeschlagen: ${err.message}`;
+    statusEl.className = 'error';
+  }
 });
 
 // ─── Results tab ──────────────────────────────────────────────────────────────
@@ -264,18 +257,25 @@ function renderRunResult(allRows, totalResults, searchUrl, errors) {
   resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function setRunningState(isRunning) {
-  runBtn.disabled = isRunning;
-  clearBtn.disabled = isRunning;
-  cancelBtn.hidden = !isRunning;
-  cancelBtn.disabled = !isRunning;
-  runBtn.textContent = isRunning ? 'Suche läuft …' : 'Jetzt suchen \u0026 exportieren';
+function setRunningState(nextRunningState) {
+  const running = Boolean(nextRunningState);
+  isRunning = running;
+  clearBtn.disabled = running;
+  cancelBtn.hidden = !running;
+  cancelBtn.disabled = !running;
+  runBtn.textContent = running ? 'Suche läuft …' : 'Jetzt suchen \u0026 exportieren';
+  updateRunAvailability();
 }
 
 // ─── Main search ──────────────────────────────────────────────────────────────
 
 document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!canSubmitSearch()) {
+    queryInput.reportValidity();
+    updateRunAvailability();
+    return;
+  }
   saveState();
   statusEl.textContent = 'Suche läuft …';
   statusEl.className = '';
@@ -289,7 +289,7 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
   // otherwise popup blockers will prevent window.open() after the first await.
   const resultsWin = window.open('/results.html', 'ams_results');
 
-  const query    = document.getElementById('query').value.trim();
+  const query    = queryInput.value.trim();
   const location = locationInput.value.trim();
   const radius   = document.getElementById('radius').value;
   const maxPages = Math.min(Math.max(Number(document.getElementById('maxPages').value), 1), 100);
@@ -403,3 +403,5 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 restoreState();
 updateRadiusState();
+queryInput.addEventListener('input', updateRunAvailability);
+updateRunAvailability();

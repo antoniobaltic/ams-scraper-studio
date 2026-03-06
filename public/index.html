@@ -22,7 +22,7 @@
       <section class="card">
         <h2>Suche</h2>
         <div class="grid search-grid">
-          <label class="col-query">Suche nach<input id="query" placeholder="Beruf, Kompetenz, Unternehmen ..." /></label>
+          <label class="col-query">Suche nach<input id="query" placeholder="Beruf, Kompetenz, Unternehmen ..." required /></label>
           <label class="col-location">Ort
             <div class="autocomplete-wrap">
               <input id="location" placeholder="Ort, PLZ, Bundesland" autocomplete="off" />
@@ -150,7 +150,8 @@
       </footer>
     </form>
 
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="/export.js"></script>
     <script src="/app.js"></script>
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
