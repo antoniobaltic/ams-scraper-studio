@@ -18,6 +18,7 @@ A lightweight web app for searching AMS jobs and exporting results to CSV/XLSX.
 - Export to CSV and Excel (`.xlsx`) in the browser
 - Result table view in a dedicated tab
 - Cancel running searches from the UI
+- Auto-healing HMAC key extraction when AMS rotates their signing key
 
 ## API Endpoints
 
@@ -75,6 +76,22 @@ vercel --prod
 ```
 
 No environment variables are required.
+
+## HMAC Key Auto-Refresh
+
+AMS signs API requests with an HMAC-SHA512 key embedded in their frontend JavaScript. They rotate this key periodically.
+
+When a request returns 401, the scraper automatically:
+1. Downloads AMS's current frontend JS bundle
+2. Extracts the new signing key via a VM sandbox
+3. Caches it in memory and retries the request
+
+To manually check or update the hardcoded default key:
+
+```bash
+node scripts/update-ams-key.js          # extract and verify
+node scripts/update-ams-key.js --write  # also update lib/ams.js
+```
 
 ## Notes
 
